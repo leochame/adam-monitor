@@ -9,4 +9,13 @@
     <pushType>redis<pushType>
 </appender>
 ````
+````sql
+CREATE TABLE log_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    system_name VARCHAR(255),
+    class_name VARCHAR(255),
+    method_name VARCHAR(255),
+    log_content TEXT
+);
 
+````

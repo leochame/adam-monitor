@@ -1,13 +1,10 @@
 package com.adam.listener;
 
-import com.adam.service.LogAnalyticalService;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.redisson.api.listener.MessageListener;
-import com.adam.listener.LogMessage;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;

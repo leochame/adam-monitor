@@ -2,6 +2,8 @@ package com.adam.push;
 
 import com.adam.entitys.LogMessage;
 
+import java.util.List;
+
 // 推送接口
 public interface IPush {
     /**
@@ -11,4 +13,7 @@ public interface IPush {
      */
     void open(String host, int port);
     void send(LogMessage logMessage);
+    void sendBatch(List<LogMessage> logMessages);
+
+    void close();
 }

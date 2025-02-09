@@ -1,5 +1,4 @@
 package com.adam.config;
-
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.kafka.common.serialization.Serdes;

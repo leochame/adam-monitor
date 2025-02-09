@@ -1,76 +1,191 @@
 package com.adam.appender;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.adam.entitys.LogMessage;
 import com.adam.push.IPush;
 import com.adam.push.PushFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.*;
 
-// 自定义日志采集器
+// 日志采集
 public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
-
     private String systemName;
     private String groupId;
     private String host;
     private int port;
-    private IPush push;  // 推送接口
+    private IPush push;
+
+    // 优化参数
+    private int queueCapacity = 10000;
+    private int batchSize = 200;
+    private int maxShards = 8;
+
+    private ShardedBuffer buffer;
+    private ExecutorService sendExecutor;
+    private volatile boolean running = true;
 
     @Override
-    protected void append(E eventObject) {
-        if (push == null) {
-            throw new IllegalStateException("Push strategy is not initialized");
+    public void start() {
+        this.buffer = new ShardedBuffer(maxShards, queueCapacity);
+        this.sendExecutor = Executors.newFixedThreadPool(maxShards);
+
+        for (int i = 0; i < maxShards; i++) {
+            sendExecutor.submit(this::batchSendTask);
         }
 
-        if (eventObject instanceof ILoggingEvent) {
-            ILoggingEvent event = (ILoggingEvent) eventObject;
-            String methodName = "unknown";
-            String className = "unknown";
-            StackTraceElement[] callerDataArray = event.getCallerData();
-            if (callerDataArray != null && callerDataArray.length > 0) {
-                StackTraceElement callerData = callerDataArray[0];
-                methodName = callerData.getMethodName();
-                className = callerData.getClassName();
-            }
+        super.start();
+    }
 
-            // 包名过滤：仅处理指定 groupId 开头的类
-            if (!className.startsWith(groupId)) {
-                return;
-            }
+    @Override
+    public void append(E eventObject) {
+        if (!(eventObject instanceof ILoggingEvent)) return;
 
-            // 构建日志消息
-            LogMessage logMessage = new LogMessage(systemName,
-                    className,
-                    methodName,
-                    Arrays.asList(event.getFormattedMessage().split(" "))
-            );
+        ILoggingEvent event = (ILoggingEvent) eventObject;
+        StackTraceElement[] callerData = event.getCallerData();
+        if (callerData == null || callerData.length == 0) return;
 
-            // 推送日志消息
-            push.send(logMessage);
+        String className = callerData[0].getClassName();
+//        if (!className.startsWith(groupId)) return;
+
+        LogMessage log = new LogMessage(
+                systemName,
+                className,
+                callerData[0].getMethodName(),
+                Arrays.asList(event.getFormattedMessage().split(" "))
+        );
+
+        if (!buffer.offer(log)) {
+            handleBackpressure(log);
         }
     }
 
-    // 使用工厂来设置推送类型
-    public void setPushType(String pushType) {
-        this.push = PushFactory.createPush(pushType, host, port);  // 使用工厂创建推送对象
+    private void batchSendTask() {
+        List<LogMessage> batch = new ArrayList<>(batchSize);
+        while (running) {
+            try {
+                LogMessage msg = buffer.poll(100, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    batch.add(msg);
+                    if (batch.size() >= batchSize) {
+                        sendBatch(batch);
+                        batch.clear();
+                    }
+                } else if (!batch.isEmpty()) {
+                    sendBatch(batch);
+                    batch.clear();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
     }
 
-    // 设置其他配置参数（例如系统名称、日志采集范围等）
+    private void sendBatch(List<LogMessage> batch) {
+        try {
+            push.sendBatch(batch);
+        } catch (Exception e) {
+            handleSendError(batch, e);
+        }
+    }
+
+    private void handleBackpressure(LogMessage log) {
+        // 实现降级策略：写入本地文件
+//        LocalStorage.write(log);
+    }
+
+    private void handleSendError(List<LogMessage> failedBatch, Exception e) {
+        buffer.retryOfferAll(failedBatch);
+        // 重试逻辑或写入死信队列
+//        if (e instanceof RecoverableException) {
+//            buffer.retryOfferAll(failedBatch);
+//        } else {
+//            DeadLetterQueue.store(failedBatch);
+//        }
+    }
+
+    @Override
+    public void stop() {
+        running = false;
+        sendExecutor.shutdownNow();
+        push.close();
+        super.stop();
+    }
+
+    // Configuration setters
+    public  void setGroupId(String groupId) {
+        this.groupId = groupId;
+    }
     public void setSystemName(String systemName) {
         this.systemName = systemName;
     }
 
-    public void setGroupId(String groupId) {
-        this.groupId = groupId;
+    public void setPushType(String pushType) {
+        this.push = PushFactory.createPush(pushType, host, port);
+    }
+
+    public void setQueueCapacity(int queueCapacity) {
+        this.queueCapacity = queueCapacity;
+    }
+
+    public void setBatchSize(int batchSize) {
+        this.batchSize = batchSize;
+    }
+
+    public void setMaxShards(int maxShards) {
+        this.maxShards = maxShards;
+    }
+    public String getHost() {
+        return host;
     }
 
     public void setHost(String host) {
         this.host = host;
     }
 
+    public int getPort() {
+        return port;
+    }
+
     public void setPort(int port) {
         this.port = port;
+    }
+
+    // Sharded Buffer实现
+    private static class ShardedBuffer {
+        private final BlockingQueue<LogMessage>[] queues;
+        private final int shardCount;
+
+        ShardedBuffer(int shardCount, int totalCapacity) {
+            this.shardCount = shardCount;
+            this.queues = new BlockingQueue[shardCount];
+            int perShardCapacity = totalCapacity / shardCount;
+            for (int i = 0; i < shardCount; i++) {
+                queues[i] = new LinkedBlockingQueue<>(perShardCapacity);
+            }
+        }
+
+        boolean offer(LogMessage msg) {
+            int shard = ThreadLocalRandom.current().nextInt(shardCount);
+            return queues[shard].offer(msg);
+        }
+
+        LogMessage poll(long timeout, TimeUnit unit) throws InterruptedException {
+            int startShard = ThreadLocalRandom.current().nextInt(shardCount);
+            for (int i = 0; i < shardCount; i++) {
+                int shard = (startShard + i) % shardCount;
+                LogMessage msg = queues[shard].poll(timeout, unit);
+                if (msg != null) return msg;
+            }
+            return null;
+        }
+
+        void retryOfferAll(List<LogMessage> batch) {
+            batch.forEach(this::offer);
+        }
     }
 }

@@ -1,0 +1,15 @@
+<mapper namespace="com.adam.mapper.LogAnalyseMapper">
+
+    <!-- 批量插入 -->
+    <insert id="saveAll" parameterType="java.util.List">
+        INSERT INTO log_message (system_name, class_name, method_name, log_content)
+        VALUES
+        <foreach collection="list" item="logMessage" index="index" separator=",">
+            (#{logMessage.systemName}, #{logMessage.className}, #{logMessage.methodName},
+            <foreach collection="logMessage.logContent" item="content" separator=",">
+                #{content}
+            </foreach>)
+        </foreach>
+    </insert>
+
+</mapper>
