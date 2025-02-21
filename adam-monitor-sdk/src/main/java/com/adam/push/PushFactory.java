@@ -5,7 +5,6 @@ import com.adam.push.impl.RedisPush;
 
 // 推送工厂
 public class PushFactory {
-
     // 根据推送类型创建推送对象
     public static IPush createPush(String type, String host, int port) {
         IPush push;

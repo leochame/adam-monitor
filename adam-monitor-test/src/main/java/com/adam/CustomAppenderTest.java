@@ -20,7 +20,7 @@ public class CustomAppenderTest {
     private static final Logger logger = LoggerFactory.getLogger(CustomAppenderTest.class);
 
     public static void main(String[] args) throws InterruptedException {
-        // 创建CustomAppender实例
+        // 创建CustomAppendeKStream<String, String> stream = streamsBuilder.stream("itcast-topic-input");r实例
         CustomAppender<ILoggingEvent> appender = new CustomAppender<>();
 
         // 配置appender

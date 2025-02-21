@@ -1,20 +1,44 @@
 package com.adam.listener;
 
-import lombok.Data;
-
 import java.util.List;
-@Data
-public class LogMessage {
-    private String systemName;
-    private String className;
-    private String methodName;
-    private List<String> logContent;
 
-    // Constructor
-    public LogMessage(String systemName, String className, String methodName, List<String> logContent) {
+/**
+ * 日志消息
+ */
+public class LogMessage {
+
+    private String systemName;
+
+    private String className;
+
+    private String methodName;
+
+    private List<String> logList;
+
+    public LogMessage() {
+    }
+
+    public LogMessage(String systemName, String className, String methodName, List<String> logList) {
         this.systemName = systemName;
         this.className = className;
         this.methodName = methodName;
-        this.logContent = logContent;
+        this.logList = logList;
     }
+
+    public String getSystemName() {
+        return systemName;
+    }
+
+    public String getClassName() {
+        return className;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public List<String> getLogList() {
+        return logList;
+    }
+
 }

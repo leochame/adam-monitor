@@ -1,8 +1,12 @@
 package com.adam.config;
+
+import com.adam.listener.LogMessage;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.Topology;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +16,10 @@ import org.springframework.kafka.config.KafkaStreamsConfiguration;
 
 import java.util.HashMap;
 import java.util.Map;
+
+/**
+ * 通过重新注册KafkaStreamsConfiguration对象，设置自定配置参数
+ */
 
 @Setter
 @Getter
@@ -29,8 +37,10 @@ public class KafkaStreamConfig {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, this.getGroup()+"_stream_aid");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, this.getGroup()+"_stream_cid");
         props.put(StreamsConfig.RETRIES_CONFIG, 10);
+//        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+//        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, LogMessageSerde.class);
         return new KafkaStreamsConfiguration(props);
     }
 }

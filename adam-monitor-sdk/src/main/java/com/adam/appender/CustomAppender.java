@@ -21,7 +21,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
 
     // 优化参数
     private int queueCapacity = 10000;
-    private int batchSize = 200;
+    private int batchSize = 5;
     private int maxShards = 8;
 
     private ShardedBuffer buffer;
@@ -49,6 +49,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
         if (callerData == null || callerData.length == 0) return;
 
         String className = callerData[0].getClassName();
+        // TODO 待解决的问题
 //        if (!className.startsWith(groupId)) return;
 
         LogMessage log = new LogMessage(
@@ -100,7 +101,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
 
     private void handleSendError(List<LogMessage> failedBatch, Exception e) {
         buffer.retryOfferAll(failedBatch);
-        // 重试逻辑或写入死信队列
+        // Todo 重试逻辑或写入死信队列
 //        if (e instanceof RecoverableException) {
 //            buffer.retryOfferAll(failedBatch);
 //        } else {
@@ -114,6 +115,40 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
         sendExecutor.shutdownNow();
         push.close();
         super.stop();
+    }
+
+    // Sharded Buffer实现
+    private static class ShardedBuffer {
+        private final BlockingQueue<LogMessage>[] queues;
+        private final int shardCount;
+
+        ShardedBuffer(int shardCount, int totalCapacity) {
+            this.shardCount = shardCount;
+            this.queues = new BlockingQueue[shardCount];
+            int perShardCapacity = totalCapacity / shardCount;
+            for (int i = 0; i < shardCount; i++) {
+                queues[i] = new LinkedBlockingQueue<>(perShardCapacity);
+            }
+        }
+
+        boolean offer(LogMessage msg) {
+            int shard = ThreadLocalRandom.current().nextInt(shardCount);
+            return queues[shard].offer(msg);
+        }
+
+        LogMessage poll(long timeout, TimeUnit unit) throws InterruptedException {
+            int startShard = ThreadLocalRandom.current().nextInt(shardCount);
+            for (int i = 0; i < shardCount; i++) {
+                int shard = (startShard + i) % shardCount;
+                LogMessage msg = queues[shard].poll(timeout, unit);
+                if (msg != null) return msg;
+            }
+            return null;
+        }
+
+        void retryOfferAll(List<LogMessage> batch) {
+            batch.forEach(this::offer);
+        }
     }
 
     // Configuration setters
@@ -153,39 +188,5 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
 
     public void setPort(int port) {
         this.port = port;
-    }
-
-    // Sharded Buffer实现
-    private static class ShardedBuffer {
-        private final BlockingQueue<LogMessage>[] queues;
-        private final int shardCount;
-
-        ShardedBuffer(int shardCount, int totalCapacity) {
-            this.shardCount = shardCount;
-            this.queues = new BlockingQueue[shardCount];
-            int perShardCapacity = totalCapacity / shardCount;
-            for (int i = 0; i < shardCount; i++) {
-                queues[i] = new LinkedBlockingQueue<>(perShardCapacity);
-            }
-        }
-
-        boolean offer(LogMessage msg) {
-            int shard = ThreadLocalRandom.current().nextInt(shardCount);
-            return queues[shard].offer(msg);
-        }
-
-        LogMessage poll(long timeout, TimeUnit unit) throws InterruptedException {
-            int startShard = ThreadLocalRandom.current().nextInt(shardCount);
-            for (int i = 0; i < shardCount; i++) {
-                int shard = (startShard + i) % shardCount;
-                LogMessage msg = queues[shard].poll(timeout, unit);
-                if (msg != null) return msg;
-            }
-            return null;
-        }
-
-        void retryOfferAll(List<LogMessage> batch) {
-            batch.forEach(this::offer);
-        }
     }
 }

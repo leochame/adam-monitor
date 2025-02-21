@@ -5,6 +5,7 @@ import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
 import io.protostuff.runtime.RuntimeSchema;
 
+@Deprecated
 public class ProtostuffUtil {
 
     /**
@@ -36,9 +37,9 @@ public class ProtostuffUtil {
             Schema schema = RuntimeSchema.getSchema(t.getClass());
             ProtostuffIOUtil.mergeFrom(bytes, t, schema);
         } catch (InstantiationException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         return t;
     }
