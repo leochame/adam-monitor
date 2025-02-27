@@ -1,11 +1,17 @@
 package com.adam.listener;
 
+import lombok.Data;
+import lombok.Getter;
+
 import java.util.List;
 
 /**
  * 日志消息
  */
+@Data
 public class LogMessage {
+
+    private String traceId;
 
     private String systemName;
 
@@ -13,32 +19,18 @@ public class LogMessage {
 
     private String methodName;
 
-    private List<String> logList;
+    private String content;
+
+    private Long timestamp;
 
     public LogMessage() {
     }
 
-    public LogMessage(String systemName, String className, String methodName, List<String> logList) {
+    public LogMessage(String systemName, String className, String methodName, String content) {
         this.systemName = systemName;
         this.className = className;
         this.methodName = methodName;
-        this.logList = logList;
-    }
-
-    public String getSystemName() {
-        return systemName;
-    }
-
-    public String getClassName() {
-        return className;
-    }
-
-    public String getMethodName() {
-        return methodName;
-    }
-
-    public List<String> getLogList() {
-        return logList;
+        this.content = content;
     }
 
 }

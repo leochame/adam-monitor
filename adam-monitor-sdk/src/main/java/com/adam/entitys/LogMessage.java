@@ -1,11 +1,11 @@
 package com.adam.entitys;
 
-import java.util.List;
-
 /**
  * 日志消息
  */
 public class LogMessage {
+
+    private String traceId;
 
     private String systemName;
 
@@ -13,16 +13,23 @@ public class LogMessage {
 
     private String methodName;
 
-    private List<String> logList;
+    private String content;
 
-    public LogMessage() {
-    }
+    private Long timestamp;
 
-    public LogMessage(String systemName, String className, String methodName, List<String> logList) {
+    public LogMessage(String systemName, String className, String methodName, String formattedMessage, Long ntpTime) {
         this.systemName = systemName;
         this.className = className;
         this.methodName = methodName;
-        this.logList = logList;
+        this.content = formattedMessage;
+        this.timestamp = ntpTime;
+    }
+
+    public LogMessage(String systemName, String className, String methodName, String content) {
+        this.systemName = systemName;
+        this.className = className;
+        this.methodName = methodName;
+        this.content = content;
     }
 
     public String getSystemName() {
@@ -37,8 +44,9 @@ public class LogMessage {
         return methodName;
     }
 
-    public List<String> getLogList() {
-        return logList;
+    public String getContent() {
+        return content;
     }
 
+    public Long getTimestamp(){return timestamp;}
 }

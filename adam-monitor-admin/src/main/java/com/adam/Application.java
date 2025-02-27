@@ -1,22 +1,12 @@
 package com.adam;
 
-import com.adam.listener.LogMessage;
-import com.adam.listener.MonitorLogListener;
-import com.adam.service.LogAnalyticalService;
-import lombok.Data;
-import org.redisson.api.RedissonClient;
-import org.redisson.api.RTopic;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 @SpringBootApplication
+@MapperScan("com.adam.mapper")
 public class Application {
-
 
 
     public static void main(String[] args) {

@@ -5,14 +5,15 @@ import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.adam.entitys.LogMessage;
 import com.adam.push.IPush;
 import com.adam.push.PushFactory;
+import com.adam.utils.NTPClient;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
 
 // 日志采集
 public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
+
     private String systemName;
     private String groupId;
     private String host;
@@ -56,7 +57,9 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
                 systemName,
                 className,
                 callerData[0].getMethodName(),
-                Arrays.asList(event.getFormattedMessage().split(" "))
+                event.getFormattedMessage(),
+                NTPClient.getNetworkTime()
+//                10L
         );
 
         if (!buffer.offer(log)) {
@@ -90,7 +93,11 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
         try {
             push.sendBatch(batch);
         } catch (Exception e) {
-            handleSendError(batch, e);
+
+            e.printStackTrace();
+            throw new RuntimeException(e);
+            //TODO  等待删除
+//            handleSendError(batch, e);
         }
     }
 
@@ -100,13 +107,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
     }
 
     private void handleSendError(List<LogMessage> failedBatch, Exception e) {
-        buffer.retryOfferAll(failedBatch);
-        // Todo 重试逻辑或写入死信队列
-//        if (e instanceof RecoverableException) {
-//            buffer.retryOfferAll(failedBatch);
-//        } else {
-//            DeadLetterQueue.store(failedBatch);
-//        }
+        return;
     }
 
     @Override

@@ -1,6 +1,9 @@
 <component name="InspectionProjectProfileManager">
   <profile version="1.0">
     <option name="myName" value="Project Default" />
+    <inspection_tool class="AutoCloseableResource" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="METHOD_MATCHER_CONFIG" value="java.util.Formatter,format,java.io.Writer,append,com.google.common.base.Preconditions,checkNotNull,org.hibernate.Session,close,java.io.PrintWriter,printf,java.io.PrintStream,printf,java.lang.foreign.Arena,ofAuto,java.lang.foreign.Arena,global,org.apache.kafka.common.serialization.Serdes,String" />
+    </inspection_tool>
     <inspection_tool class="JavadocDeclaration" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ADDITIONAL_TAGS" value="description,create" />
     </inspection_tool>
@@ -9,15 +12,30 @@
       <option name="ignoredModules">
         <list>
           <option value="adam-monitor-admin" />
+          <option value="adam-monitor-admin" />
+          <option value="adam-monitor-admin" />
+          <option value="adam-monitor-admin" />
+          <option value="adam-monitor-admin" />
+          <option value="adam-monitor-admin" />
         </list>
       </option>
       <option name="ignoredPackages">
         <list>
           <option value="org.yaml:snakeyaml:1.30" />
+          <option value="com.clickhouse:clickhouse-http-client:0.3.2" />
+          <option value="com.clickhouse:clickhouse-client:0.3.2" />
+          <option value="org.apache.kafka:kafka-clients:3.5.1" />
+          <option value="org.springframework.boot:spring-boot-actuator:3.1.5" />
+          <option value="io.netty:netty-common:4.1.100.Final" />
         </list>
       </option>
       <option name="ignoredReasons">
         <list>
+          <option value="Not exploitable" />
+          <option value="Not exploitable" />
+          <option value="Other" />
+          <option value="Not exploitable" />
+          <option value="Not exploitable" />
           <option value="Not exploitable" />
         </list>
       </option>

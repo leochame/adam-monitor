@@ -1,26 +1,19 @@
 package com.adam.listener;
 
-import com.adam.config.LogMessageListDeserializer;
-import com.adam.config.LogMessageListSerializer;
+
 import com.adam.service.LogAnalyticalService;
 import com.adam.utils.ProtostuffUtil;
 import com.alibaba.fastjson2.JSON;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.*;
-import org.apache.kafka.streams.state.WindowStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -34,65 +27,52 @@ public class BatchLogStreamHandler {
 
     @Bean
     public KStream<String, String> kStream(StreamsBuilder builder) {
-        // 从Kafka主题 "logs-topic3" 创建KStream
-        KStream<String, String> stream = builder.stream("logs-topic3");
+        KStream<String, String> stream = builder.stream("logs-topic4");
 
-        // 解析日志并提取时间戳
-        KStream<String, LogMessage> parsedStream = stream.map((key, value) -> {
-            // 将JSON字符串解析为LogMessage对象
-            LogMessage log = JSON.parseObject(value, LogMessage.class);
-            // 返回新的键值对，键为系统名称，值为日志对象
-            return new KeyValue<>(log.getSystemName(), log);
-        });
-
-        // 过滤掉空日志
-        KStream<String, LogMessage> filteredStream = parsedStream.filter((key, log) -> log != null);
-
-        // 按系统名称分组，并定义时间窗口
-        KGroupedStream<String, LogMessage> groupedStream = filteredStream.groupByKey();
-
-        // 定义时间窗口（3秒窗口，无宽限期）
-        TimeWindowedKStream<String, LogMessage> windowedStream = groupedStream
-                .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(3)));
-
-        // 聚合窗口内的日志
-        // 聚合窗口内的日志
-        KTable<Windowed<String>, List<LogMessage>> aggregatedTable = windowedStream
+// 处理日志、窗口聚合，并触发批量插入
+        KTable<Windowed<String>, String> aggregatedTable = stream
+                .map((key, value) -> {
+//                    LogMessage log = JSON.parseObject(value, LogMessage.class);
+//                    String systemName = log.getSystemName();
+//                    if (systemName == null || systemName.isEmpty()) {
+//                        systemName = "default"; // 使用默认键
+//                    }
+//                    System.out.println(value);
+                    return new KeyValue<>("default", value);
+                })
+                .filter((key, value) -> value != null)
+                .groupByKey()
+//                .peek((key, value) -> System.out.println("After groupByKey: " + key + " -> " + value)) // 添加调试信息
+                .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(3)))
                 .aggregate(
-                        ArrayList::new, // 初始化聚合器
-                        (key, log, agg) -> { // 聚合逻辑
-                            agg.add(log);
-                            return agg;
+                        () -> "",
+                        (key, value, aggregate) -> {
+                            if (aggregate.isEmpty()) {
+                                return value;
+                            } else {
+                                return aggregate + "@#@" + value; // 使用逗号分隔
+                            }
+
                         },
-                        Materialized.<String, List<LogMessage>, WindowStore<Bytes, byte[]>>as("log-windowed-store")
-                                .withKeySerde(Serdes.String())
-                                .withValueSerde(Serdes.serdeFrom(new LogMessageListSerializer(), new LogMessageListDeserializer()))
+                        Materialized.with(Serdes.String(), Serdes.String())
                 );
 
-
-        // 将聚合结果转换为流
-        KStream<Windowed<String>, List<LogMessage>> resultStream = aggregatedTable.toStream();
-
-        // 处理每个窗口的日志
-        resultStream.foreach((windowedKey, logs) -> {
-            if (!logs.isEmpty()) {
-                // 批量插入日志
-                batchInsert(logs);
-                // 记录日志插入信息
-                log.info("窗口 [{} - {}] 插入 {} 条日志",
-                        windowedKey.window().startTime(),
-                        windowedKey.window().endTime(),
-                        logs.size()
-                );
+// 将聚合结果批量插入数据库
+        aggregatedTable.toStream().foreach((windowedKey, aggregatedValue) -> {
+            try {
+                List<String> logList = Arrays.asList(aggregatedValue.split("@#@"));
+                System.out.println(logList);
+                batchInsert(logList);
+                System.out.println("成功插入批次: " + logList.size() + " 条");
+            } catch (Exception e) {
+                System.err.println("插入失败: " + e.getMessage());
             }
         });
-
-        // 返回原始流
         return stream;
     }
 
     // 批量插入日志消息
-    private void batchInsert(List<LogMessage> logBatch) {
+    private void batchInsert(List<String> logBatch) {
         // 假设你用某种方式将数据插入到数据库
         logAnalyticalService.saveAll(logBatch);
         log.info("批量插入日志数据，插入了 {} 条数据", logBatch.size());

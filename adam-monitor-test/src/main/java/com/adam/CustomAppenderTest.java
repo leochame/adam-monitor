@@ -7,6 +7,7 @@ import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.LoggerContextVO;
 import ch.qos.logback.core.util.StatusPrinter;
 import com.adam.appender.CustomAppender;
+import com.alibaba.fastjson2.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
@@ -36,7 +37,7 @@ public class CustomAppenderTest {
 
         // 创建模拟日志事件
         for (int i = 0; i < 1000; i++) {
-            logger.info("Test message userId:{},state:{}", i,i);
+            logger.info("Test message userId:{}_{}_{}", i,i, JSON.toJSON(i));
         }
 
         // 等待一段时间，确保日志已被处理

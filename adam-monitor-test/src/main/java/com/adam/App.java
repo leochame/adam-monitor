@@ -26,7 +26,7 @@ public class App {
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerConfig);
 
         // 订阅 topic
-        consumer.subscribe(Collections.singletonList("logs-topic1"));
+        consumer.subscribe(Collections.singletonList("logs-topic4"));
 
         // 消费循环
         try {

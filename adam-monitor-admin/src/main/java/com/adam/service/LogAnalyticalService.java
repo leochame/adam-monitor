@@ -1,7 +1,4 @@
 package com.adam.service;
-
-import com.adam.listener.LogMessage;
-
 import java.util.List;
 
 /**
@@ -9,5 +6,5 @@ import java.util.List;
  */
 public interface LogAnalyticalService {
 
-    void saveAll(List<LogMessage> logBatch);
+    void saveAll(List<String> logBatch);
 }

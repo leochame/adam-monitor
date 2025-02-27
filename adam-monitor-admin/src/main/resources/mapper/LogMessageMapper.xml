@@ -1,14 +1,18 @@
 <mapper namespace="com.adam.mapper.LogAnalyseMapper">
 
-    <!-- 批量插入 -->
-    <insert id="saveAll" parameterType="java.util.List">
-        INSERT INTO log_message (system_name, class_name, method_name, log_content)
+    <insert id="batchInsert">
+        INSERT INTO log_table
+        (trace_id, system_name, class_name, method_name, content, timestamp)
         VALUES
-        <foreach collection="list" item="logMessage" index="index" separator=",">
-            (#{logMessage.systemName}, #{logMessage.className}, #{logMessage.methodName},
-            <foreach collection="logMessage.logContent" item="content" separator=",">
-                #{content}
-            </foreach>)
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.traceId},
+            #{item.systemName},
+            #{item.className},
+            #{item.methodName},
+            #{item.content},
+            #{item.timestamp, typeHandler=com.example.handler.DateTimeTypeHandler}
+            )
         </foreach>
     </insert>
 

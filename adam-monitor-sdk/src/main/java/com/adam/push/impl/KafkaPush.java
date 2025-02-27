@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.Metrics;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +37,7 @@ public class KafkaPush implements IPush {
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, host + ":" + port);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, BATCH_SIZE);
         props.put(ProducerConfig.LINGER_MS_CONFIG, LINGER_MS);
@@ -57,37 +59,37 @@ public class KafkaPush implements IPush {
         if (!acquirePermits(batch.size())) {
             throw new RuntimeException("Too many pending requests");
         }
-
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (LogMessage log : batch) {
-            ProducerRecord<String, String> record = new ProducerRecord<>(
-                    "logs-topic3",
-                    log.getSystemName(),
-                    JSON.toJSONString(log)
-            );
-
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            producer.send(record, (metadata, e) -> {
-                semaphore.release(); // 释放信号量
-                if (e != null) {
-                    meterRegistry.counter("send.errors").increment();
-                    future.completeExceptionally(e); // 标记失败
-                } else {
-                    //TODO 记录Kafka发送时间
-//                    meterRegistry.timer("send.latency").record(System.currentTimeMillis() - log.getTimestamp());
-                    meterRegistry.timer("send.latency");
-                    future.complete(null); // 标记成功
-                }
-            });
-            futures.add(future);
-        }
-//        meterRegistry.gauge("in.flight.requests", semaphore, Semaphore::availablePermits);
-        // 统一处理所有 Future
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .exceptionally(ex -> {
-                    meterRegistry.counter("send.batch.errors").increment();
-                    return null;
-                });
+        semaphore.release();
+//        List<CompletableFuture<Void>> futures = new ArrayList<>();
+//        for (LogMessage log : batch) {
+//            ProducerRecord<String, String> record = new ProducerRecord<>(
+//                    "logs-topic4",
+//                    log.getSystemName(),
+//                    JSON.toJSONString(log)
+//            );
+//
+//            CompletableFuture<Void> future = new CompletableFuture<>();
+//            producer.send(record, (metadata, e) -> {
+//                semaphore.release(); // 释放信号量
+//                if (e != null) {
+//                    meterRegistry.counter("send.errors").increment();
+//                    future.completeExceptionally(e); // 标记失败
+//                } else {
+//                    //TODO 记录Kafka发送时间
+////                    meterRegistry.timer("send.latency").record(System.currentTimeMillis() - log.getTimestamp());
+//                    meterRegistry.timer("send.latency");
+//                    future.complete(null); // 标记成功
+//                }
+//            });
+//            futures.add(future);
+//        }
+////        meterRegistry.gauge("in.flight.requests", semaphore, Semaphore::availablePermits);
+//        // 统一处理所有 Future
+//        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+//                .exceptionally(ex -> {
+//                    meterRegistry.counter("send.batch.errors").increment();
+//                    return null;
+//                });
     }
 
     private boolean acquirePermits(int required) {
