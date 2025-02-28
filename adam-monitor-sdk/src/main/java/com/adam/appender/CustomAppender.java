@@ -5,7 +5,7 @@ import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.adam.entitys.LogMessage;
 import com.adam.push.IPush;
 import com.adam.push.PushFactory;
-import com.adam.utils.NTPClient;
+import com.adam.ntp.NTPClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,8 +58,9 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
                 className,
                 callerData[0].getMethodName(),
                 event.getFormattedMessage(),
-                NTPClient.getNetworkTime()
-//                10L
+//                NTPClient
+                10L
+
         );
 
         if (!buffer.offer(log)) {
