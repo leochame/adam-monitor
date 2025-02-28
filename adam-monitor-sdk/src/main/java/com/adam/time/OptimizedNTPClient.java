@@ -23,10 +23,19 @@ public class OptimizedNTPClient {
     }
 
     // 2. Reactor线程组配置
-    private static final ExecutorService bossExecutor = 
-        Executors.newSingleThreadExecutor(); // 主Reactor线程
-    private static final ExecutorService workerExecutor = 
-        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()); // 工作线程
+    private final static ExecutorService bossExecutor = new ThreadPoolExecutor(
+            1, 1,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<>(1000),
+            new ThreadPoolExecutor.AbortPolicy());
+
+    // 分拣员团队配置
+    private final static ExecutorService workerExecutor = new ThreadPoolExecutor(
+            Runtime.getRuntime().availableProcessors(), // 基础分拣员数量（CPU核数）
+            Runtime.getRuntime().availableProcessors()*2, // 高峰时可临时雇佣的分拣员上限
+            60L, TimeUnit.SECONDS, // 临时工空闲1分钟自动解雇
+            new ArrayBlockingQueue<>(200), // 分拣区最多堆放200个包裹
+            new ThreadPoolExecutor.AbortPolicy()); // 自定义包裹拒收策略
     
     // 3. 全局Selector（非阻塞模式核心）
     private static Selector selector;
@@ -34,7 +43,7 @@ public class OptimizedNTPClient {
     public static void main(String[] args) throws Exception {
         initSelector();
         startReactor();
-        sendRequests(2000); // 发送100次请求
+        sendRequests(100); // 发送100次请求
 
     }
 

@@ -5,15 +5,11 @@ import com.adam.exception.ServerUnreachableException;
 import com.adam.exception.StratumViolationException;
 import com.adam.ntp.core.ClockCompensator;
 import com.adam.ntp.core.NtpServer;
-import com.adam.ntp.handler.NioNetworkHandler;
 import com.adam.ntp.routing.NtpRouter;
 import org.apache.commons.net.ntp.*;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
 
 // 文件5: NTPClient.java
 public class NTPClient {
