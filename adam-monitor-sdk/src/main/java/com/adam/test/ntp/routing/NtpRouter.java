@@ -1,8 +1,8 @@
-package com.adam.ntp.routing;
+package com.adam.test.ntp.routing;
 
 import com.adam.exception.NtpException;
 import com.adam.exception.ServerUnreachableException;
-import com.adam.ntp.core.NtpServer;
+import com.adam.test.ntp.core.NtpServer;
 
 import java.net.*;
 import java.util.*;
@@ -12,6 +12,7 @@ import java.util.concurrent.*;
 public class NtpRouter {
     private final List<NtpServer> servers;
     private final Map<String, InetAddress> dnsCache = new ConcurrentHashMap<>();
+
     private final ScheduledExecutorService dnsRefresher =
             Executors.newSingleThreadScheduledExecutor();
 

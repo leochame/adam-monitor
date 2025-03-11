@@ -1,4 +1,4 @@
-package com.adam.ntp.core;
+package com.adam.test.ntp.core;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.*;

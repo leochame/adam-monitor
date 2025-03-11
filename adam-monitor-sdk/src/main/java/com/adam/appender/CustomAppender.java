@@ -5,7 +5,6 @@ import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.adam.entitys.LogMessage;
 import com.adam.push.IPush;
 import com.adam.push.PushFactory;
-import com.adam.ntp.NTPClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +71,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
         List<LogMessage> batch = new ArrayList<>(batchSize);
         while (running) {
             try {
-                LogMessage msg = buffer.poll(100, TimeUnit.MILLISECONDS);
+                LogMessage msg = buffer.poll(1000, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     batch.add(msg);
                     if (batch.size() >= batchSize) {

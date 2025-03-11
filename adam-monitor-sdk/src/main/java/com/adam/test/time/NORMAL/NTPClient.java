@@ -1,4 +1,4 @@
-package com.adam.time;
+package com.adam.test.time.NORMAL;
 
 import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.TimeInfo;
@@ -22,5 +22,6 @@ public class NTPClient {
         for (int i = 0; i < 100; i++) {
             getNTPTime();
         }
+        System.out.println(1);
     }
 }                                                                   
