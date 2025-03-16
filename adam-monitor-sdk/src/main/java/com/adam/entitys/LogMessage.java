@@ -49,4 +49,32 @@ public class LogMessage {
     }
 
     public Long getTimestamp(){return timestamp;}
+    
+    public void setTimestamp(Long timestamp) {
+        this.timestamp = timestamp;
+    }
+    
+    public String getTraceId() {
+        return traceId;
+    }
+    
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
+    }
+    
+    public void setSystemName(String systemName) {
+        this.systemName = systemName;
+    }
+    
+    public void setClassName(String className) {
+        this.className = className;
+    }
+    
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
+    }
+    
+    public void setContent(String content) {
+        this.content = content;
+    }
 }

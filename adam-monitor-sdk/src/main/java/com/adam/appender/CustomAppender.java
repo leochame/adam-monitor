@@ -5,7 +5,6 @@ import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.adam.entitys.LogMessage;
 import com.adam.push.IPush;
 import com.adam.push.PushFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -57,10 +56,12 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
                 className,
                 callerData[0].getMethodName(),
                 event.getFormattedMessage(),
-//                NTPClient
-                10L
-
+                System.currentTimeMillis() // 使用系统当前时间替代NTP时间
         );
+        
+        // 设置跟踪ID，可以使用MDC中的traceId或生成一个UUID
+        String traceId = event.getMDCPropertyMap().get("traceId");
+        log.setTraceId(traceId != null ? traceId : java.util.UUID.randomUUID().toString());
 
         if (!buffer.offer(log)) {
             handleBackpressure(log);
@@ -93,21 +94,47 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
         try {
             push.sendBatch(batch);
         } catch (Exception e) {
-
-            e.printStackTrace();
-            throw new RuntimeException(e);
-            //TODO  等待删除
-//            handleSendError(batch, e);
+            // 不抛出异常，而是调用错误处理方法
+            handleSendError(batch, e);
         }
     }
 
     private void handleBackpressure(LogMessage log) {
-        // 实现降级策略：写入本地文件
-//        LocalStorage.write(log);
+        // 实现降级策略：记录丢弃的日志并输出警告
+        System.err.println("队列已满，日志被丢弃: " + log.getClassName() + "." + log.getMethodName());
+        // 可以考虑实现本地文件存储作为备份
+        // 或者尝试重新放入队列，但有可能导致阻塞
+        try {
+            // 尝试再次放入队列，最多等待100ms
+            boolean offered = false;
+            for (int i = 0; i < 3 && !offered; i++) {
+                offered = buffer.offer(log);
+                if (!offered) {
+                    Thread.sleep(50);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void handleSendError(List<LogMessage> failedBatch, Exception e) {
-        return;
+        // 记录错误信息
+        System.err.println("发送日志批次失败: " + e.getMessage());
+        e.printStackTrace();
+        
+        // 尝试重新放入队列，以便下次重试
+        try {
+            // 避免无限循环重试导致的资源耗尽
+            if (failedBatch.size() <= batchSize / 2) {
+                buffer.retryOfferAll(failedBatch);
+                System.out.println("已将" + failedBatch.size() + "条失败日志重新放入队列");
+            } else {
+                System.err.println("失败批次过大，放弃重试: " + failedBatch.size() + "条日志");
+            }
+        } catch (Exception retryEx) {
+            System.err.println("重新放入队列失败: " + retryEx.getMessage());
+        }
     }
 
     @Override
@@ -161,7 +188,8 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
     }
 
     public void setPushType(String pushType) {
-        this.push = PushFactory.createPush(pushType, host, port);
+        // 简化SDK，统一使用Kafka作为推送类型
+        this.push = PushFactory.createPush("kafka", host, port);
     }
 
     public void setQueueCapacity(int queueCapacity) {

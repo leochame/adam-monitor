@@ -49,11 +49,7 @@
             <artifactId>fastjson</artifactId>
             <version>2.0.49</version>
         </dependency>
-        <dependency>
-            <groupId>org.redisson</groupId>
-            <artifactId>redisson-spring-boot-starter</artifactId>
-            <version>3.26.0</version>
-        </dependency>
+        <!-- 移除Redis依赖，简化SDK -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -94,6 +90,18 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>30.1-jre</version> <!-- 根据项目需求选择版本 -->
+        </dependency>
+        <!-- Micrometer核心依赖，用于指标监控 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>1.9.10</version>
+        </dependency>
+        <!-- Micrometer注册表实现，用于将指标导出到监控系统 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <version>1.9.10</version>
         </dependency>
     </dependencies>
 

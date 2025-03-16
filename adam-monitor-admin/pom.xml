@@ -63,20 +63,11 @@
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.redisson</groupId>
-            <artifactId>redisson-spring-boot-starter</artifactId>
-            <version>3.26.0</version>
-        </dependency>
+        <!-- Redis依赖已移除 -->
         <dependency>
             <groupId>ognl</groupId>
             <artifactId>ognl</artifactId>
             <version>3.0.12</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-streams</artifactId>
-            <version>3.5.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -87,6 +78,29 @@
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
             <version>2.9.13</version>
+        </dependency>
+        <!-- Flink Core Dependencies -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java</artifactId>
+            <version>1.17.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-clients</artifactId>
+            <version>1.17.1</version>
+        </dependency>
+        <!-- Flink Kafka Connector -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-kafka</artifactId>
+            <version>1.17.1</version>
+        </dependency>
+        <!-- Flink Table API & SQL -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-api-java-bridge</artifactId>
+            <version>1.17.1</version>
         </dependency>
         <dependency>
             <groupId>io.protostuff</groupId>
