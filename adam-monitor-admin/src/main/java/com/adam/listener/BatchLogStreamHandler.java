@@ -3,7 +3,6 @@ package com.adam.listener;
 
 import com.adam.service.LogAnalyticalService;
 import com.adam.utils.ProtostuffUtil;
-import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
@@ -32,17 +31,10 @@ public class BatchLogStreamHandler {
 // 处理日志、窗口聚合，并触发批量插入
         KTable<Windowed<String>, String> aggregatedTable = stream
                 .map((key, value) -> {
-//                    LogMessage log = JSON.parseObject(value, LogMessage.class);
-//                    String systemName = log.getSystemName();
-//                    if (systemName == null || systemName.isEmpty()) {
-//                        systemName = "default"; // 使用默认键
-//                    }
-//                    System.out.println(value);
                     return new KeyValue<>("default", value);
                 })
                 .filter((key, value) -> value != null)
                 .groupByKey()
-//                .peek((key, value) -> System.out.println("After groupByKey: " + key + " -> " + value)) // 添加调试信息
                 .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(3)))
                 .aggregate(
                         () -> "",
@@ -88,30 +80,4 @@ public class BatchLogStreamHandler {
         }
     }
 
-
-    // 高性能序列化
-//    public static class LogMessageSerializer {
-//        private static final ThreadLocal<ProtoBufEncoder> encoder =
-//                ThreadLocal.withInitial(ProtoBufEncoder::new);
-//
-//        public static Serde<LogMessage> serde() {
-//            return Serdes.serdeFrom(
-//                    (topic, data) -> encoder.get().encode(data),
-//                    (topic, bytes) -> encoder.get().decode(bytes)
-//            );
-//        }
-//    }
-
-//     时间戳提取器
-//    public static class LogTimestampExtractor implements TimestampExtractor {
-//        @Override
-//        public long extract(ConsumerRecord<Object, Object> record, long partitionTime) {
-//            try {
-//                LogMessage log = LogMessageSerializer.deserialize((String) record.value());
-//                return log.getTimestamp();
-//            } catch (Exception e) {
-//                return System.currentTimeMillis();
-//            }
-//        }
-//    }
 }

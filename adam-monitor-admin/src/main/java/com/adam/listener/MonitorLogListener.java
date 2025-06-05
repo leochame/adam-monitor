@@ -50,8 +50,7 @@ public class MonitorLogListener implements MessageListener<LogMessage> {
     }
 
     private void batchInsertLogs(List<LogMessage> logs) {
-        // 实现批量插入逻辑，例如使用JdbcTemplate或MyBatis批量操作
-        // 示例：jdbcTemplate.batchUpdate(...);
+
     }
 
     private void handleInsertError(List<LogMessage> failedBatch, Exception e) {

@@ -1,11 +1,11 @@
-package com.adam.test.ntp;
+package com.adam.ntp;
 
 import com.adam.exception.NtpException;
 import com.adam.exception.ServerUnreachableException;
 import com.adam.exception.StratumViolationException;
-import com.adam.test.ntp.core.ClockCompensator;
-import com.adam.test.ntp.core.NtpServer;
-import com.adam.test.ntp.routing.NtpRouter;
+import com.adam.ntp.core.ClockCompensator;
+import com.adam.ntp.core.NtpServer;
+import com.adam.ntp.routing.NtpRouter;
 import org.apache.commons.net.ntp.*;
 import java.io.IOException;
 import java.net.InetAddress;

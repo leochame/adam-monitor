@@ -1,8 +1,8 @@
-package com.adam.test.ntp.routing;
+package com.adam.ntp.routing;
 
 import com.adam.exception.NtpException;
 import com.adam.exception.ServerUnreachableException;
-import com.adam.test.ntp.core.NtpServer;
+import com.adam.ntp.core.NtpServer;
 
 import java.net.*;
 import java.util.*;

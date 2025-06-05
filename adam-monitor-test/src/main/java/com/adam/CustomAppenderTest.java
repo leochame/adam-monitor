@@ -21,6 +21,7 @@ public class CustomAppenderTest {
     private static final Logger logger = LoggerFactory.getLogger(CustomAppenderTest.class);
 
     public static void main(String[] args) throws InterruptedException {
+        System.out.println(1);
         // 创建CustomAppendeKStream<String, String> stream = streamsBuilder.stream("itcast-topic-input");r实例
         CustomAppender<ILoggingEvent> appender = new CustomAppender<>();
 
@@ -36,7 +37,11 @@ public class CustomAppenderTest {
         StatusPrinter.print(context);
 
         // 创建模拟日志事件
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 100000; i++) {
+            logger.info("Test message userId:{}_{}_{}", i,i, JSON.toJSON(i));
+        }
+        Thread.sleep(2000);
+        for (int i = 0; i < 100000; i++) {
             logger.info("Test message userId:{}_{}_{}", i,i, JSON.toJSON(i));
         }
 
@@ -45,101 +50,5 @@ public class CustomAppenderTest {
 
         // 停止appender
         appender.stop();
-    }
-
-    // 模拟创建ILoggingEvent
-    private static ILoggingEvent createMockLoggingEvent(String message) {
-        return new ILoggingEvent() {
-
-            @Override
-            public String getThreadName() {
-                return "";
-            }
-
-            @Override
-            public Level getLevel() {
-                return null;
-            }
-
-            @Override
-            public String getMessage() {
-                return "";
-            }
-
-            @Override
-            public Object[] getArgumentArray() {
-                return new Object[0];
-            }
-
-            @Override
-            public String getFormattedMessage() {
-                return "";
-            }
-
-            @Override
-            public String getLoggerName() {
-                return "";
-            }
-
-            @Override
-            public LoggerContextVO getLoggerContextVO() {
-                return null;
-            }
-
-            @Override
-            public IThrowableProxy getThrowableProxy() {
-                return null;
-            }
-
-            @Override
-            public StackTraceElement[] getCallerData() {
-                return new StackTraceElement[0];
-            }
-
-            @Override
-            public boolean hasCallerData() {
-                return false;
-            }
-
-            @Override
-            public List<Marker> getMarkerList() {
-                return List.of();
-            }
-
-            @Override
-            public Map<String, String> getMDCPropertyMap() {
-                return Map.of();
-            }
-
-            @Override
-            public Map<String, String> getMdc() {
-                return Map.of();
-            }
-
-            @Override
-            public long getTimeStamp() {
-                return 0;
-            }
-
-            @Override
-            public int getNanoseconds() {
-                return 0;
-            }
-
-            @Override
-            public long getSequenceNumber() {
-                return 0;
-            }
-
-            @Override
-            public List<KeyValuePair> getKeyValuePairs() {
-                return List.of();
-            }
-
-            @Override
-            public void prepareForDeferredProcessing() {
-
-            }
-        };
     }
 }

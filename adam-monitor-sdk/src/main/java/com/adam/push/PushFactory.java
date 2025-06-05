@@ -1,7 +1,6 @@
 package com.adam.push;
 
 import com.adam.push.impl.KafkaPush;
-import com.adam.push.impl.RedisPush;
 
 // 推送工厂
 public class PushFactory {
@@ -9,9 +8,6 @@ public class PushFactory {
     public static IPush createPush(String type, String host, int port) {
         IPush push;
         switch (type.toLowerCase()) {
-            case "redis":
-                push = new RedisPush();
-                break;
             case "kafka":
                 push = new KafkaPush();
                 break;
