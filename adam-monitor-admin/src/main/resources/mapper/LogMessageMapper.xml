@@ -11,7 +11,7 @@
             #{item.className},
             #{item.methodName},
             #{item.content},
-            #{item.timestamp, typeHandler=com.example.handler.DateTimeTypeHandler}
+            #{item.timestamp, typeHandler=com.adam.handler.DateTimeTypeHandler}
             )
         </foreach>
     </insert>

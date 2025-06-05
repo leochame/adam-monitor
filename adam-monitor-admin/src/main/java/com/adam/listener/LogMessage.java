@@ -1,10 +1,5 @@
 package com.adam.listener;
-
 import lombok.Data;
-import lombok.Getter;
-
-import java.util.List;
-
 /**
  * 日志消息
  */
