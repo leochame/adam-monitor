@@ -5,7 +5,7 @@ import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.adam.entitys.LogMessage;
 import com.adam.push.IPush;
 import com.adam.push.PushFactory;
-import com.adam.ntp.NTPClient;
+import com.adam.time.EnhancedNTPClient;
 import com.adam.utils.LocalFileBuffer;
 
 import java.net.ConnectException;
@@ -52,35 +52,34 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
     private final AtomicLong droppedMessages = new AtomicLong(0);
     private final AtomicLong avgLatency = new AtomicLong(0);
     private final AtomicInteger errorCount = new AtomicInteger(0);
-    
+
     // NTP时间同步
     private volatile boolean enableNtp = true;
-    private volatile long lastNtpSync = 0;
     private static final long NTP_SYNC_INTERVAL = 300_000; // 5分钟同步一次
 
     @Override
     public void start() {
         // 初始化组件
         this.buffer = new IntelligentShardedBuffer(maxShards, queueCapacity);
-        this.sendExecutor = Executors.newFixedThreadPool(maxShards, 
+        this.sendExecutor = Executors.newFixedThreadPool(maxShards,
             r -> new Thread(r, "LogSender-" + Thread.currentThread().getId()));
         this.optimizerExecutor = Executors.newSingleThreadScheduledExecutor(
             r -> new Thread(r, "LogOptimizer"));
         this.localFileBuffer = new LocalFileBuffer(systemName);
-        
+
         // 启动发送任务
         for (int i = 0; i < maxShards; i++) {
             final int shardId = i;
             sendExecutor.submit(() -> batchSendTask(shardId));
         }
-        
+
         // 启动性能优化器
-        optimizerExecutor.scheduleAtFixedRate(this::performanceOptimization, 
+        optimizerExecutor.scheduleAtFixedRate(this::performanceOptimization,
             30, 30, TimeUnit.SECONDS);
-        
+
         // 启动NTP同步
         if (enableNtp) {
-            optimizerExecutor.scheduleAtFixedRate(this::syncNtpTime, 
+            optimizerExecutor.scheduleAtFixedRate(this::syncNtpTime,
                 0, NTP_SYNC_INTERVAL, TimeUnit.MILLISECONDS);
         }
 
@@ -101,7 +100,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
 
         // 获取精确时间戳
         long timestamp = getCurrentTimestamp();
-        
+
         LogMessage log = new LogMessage(
                 systemName,
                 className,
@@ -109,9 +108,9 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
                 event.getFormattedMessage(),
                 timestamp
         );
-        
+
         totalMessages.incrementAndGet();
-        
+
         // 智能缓冲区投递
         if (!buffer.offer(log)) {
             handleBackpressure(log);
@@ -121,29 +120,29 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
     private void batchSendTask(int shardId) {
         List<LogMessage> batch = new ArrayList<>(batchSize);
         long lastSendTime = System.currentTimeMillis();
-        
+
         while (running) {
             try {
                 LogMessage msg = buffer.poll(shardId, batchTimeoutMs, TimeUnit.MILLISECONDS);
                 long currentTime = System.currentTimeMillis();
-                
+
                 if (msg != null) {
                     batch.add(msg);
                 }
-                
+
                 // 批量发送条件：达到批量大小 或 超时 或 停止运行
-                boolean shouldSend = batch.size() >= batchSize || 
+                boolean shouldSend = batch.size() >= batchSize ||
                                    (currentTime - lastSendTime >= batchTimeoutMs && !batch.isEmpty()) ||
                                    (!running && !batch.isEmpty());
-                
+
                 if (shouldSend) {
                     long startTime = System.nanoTime();
                     sendBatch(batch);
                     long endTime = System.nanoTime();
-                    
+
                     // 更新延迟统计
                     updateLatencyStats(Duration.ofNanos(endTime - startTime).toMillis());
-                    
+
                     batch.clear();
                     lastSendTime = currentTime;
                 }
@@ -164,7 +163,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
 
     private void sendBatch(List<LogMessage> batch) {
         if (batch.isEmpty()) return;
-        
+
         try {
             push.sendBatch(batch);
         } catch (Exception e) {
@@ -179,12 +178,12 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
      */
     private void handleBackpressure(LogMessage log) {
         droppedMessages.incrementAndGet();
-        
+
         // 策略1: 尝试写入本地文件缓冲区
         if (localFileBuffer.offer(log)) {
             return;
         }
-        
+
         // 策略2: 采样保留（保留10%的重要日志）
         if (isImportantLog(log) && shouldSample()) {
             // 强制写入，可能阻塞
@@ -196,7 +195,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
                 Thread.currentThread().interrupt();
             }
         }
-        
+
         // 策略3: 记录丢弃统计
         addWarn("Log message dropped due to backpressure: " + log.getContent());
     }
@@ -215,7 +214,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
     @Override
     public void stop() {
         running = false;
-        
+
         // 优雅关闭
         try {
             // 等待发送任务完成
@@ -223,32 +222,32 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
             if (!sendExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
                 sendExecutor.shutdownNow();
             }
-            
+
             // 关闭优化器
             optimizerExecutor.shutdown();
             if (!optimizerExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                 optimizerExecutor.shutdownNow();
             }
-            
+
             // 处理剩余消息
             buffer.drainRemaining().forEach(localFileBuffer::offer);
-            
+
             // 关闭推送组件
             if (push != null) {
                 push.close();
             }
-            
+
             // 关闭本地文件缓冲区
             localFileBuffer.close();
-            
+
             // 输出统计信息
             printStatistics();
-            
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             addError("Interrupted during shutdown", e);
         }
-        
+
         super.stop();
     }
 
@@ -290,61 +289,51 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
      * 获取当前时间戳（支持NTP同步）
      */
     private long getCurrentTimestamp() {
-        if (enableNtp && shouldSyncNtp()) {
-            syncNtpTime();
-        }
-        return System.currentTimeMillis();
+        return syncNtpTime();
     }
-    
-    /**
-     * 是否需要NTP同步
-     */
-    private boolean shouldSyncNtp() {
-        return System.currentTimeMillis() - lastNtpSync > NTP_SYNC_INTERVAL;
-    }
-    
+
     /**
      * NTP时间同步
      */
-    private void syncNtpTime() {
+    private long syncNtpTime() {
         try {
-            NTPClient ntpClient = new NTPClient();
             // 这里可以根据实际需要调整时间偏移
-            lastNtpSync = System.currentTimeMillis();
+           EnhancedNTPClient.getInstance().getCurrentTime().getTime();
         } catch (Exception e) {
             addWarn("NTP sync failed: " + e.getMessage());
         }
+        return 0;
     }
-    
+
     /**
      * 判断是否为重要日志
      */
     private boolean isImportantLog(LogMessage log) {
         String content = log.getContent().toLowerCase();
-        return content.contains("error") || 
-               content.contains("exception") || 
+        return content.contains("error") ||
+               content.contains("exception") ||
                content.contains("fatal") ||
                content.contains("critical");
     }
-    
+
     /**
      * 采样判断（10%概率）
      */
     private boolean shouldSample() {
         return Math.random() < 0.1;
     }
-    
+
     /**
      * 判断是否为可恢复错误
      */
     private boolean isRecoverableError(Exception e) {
         return e instanceof TimeoutException ||
                e instanceof ConnectException ||
-               (e.getMessage() != null && 
+               (e.getMessage() != null &&
                 (e.getMessage().contains("timeout") ||
                  e.getMessage().contains("connection")));
     }
-    
+
     /**
      * 更新延迟统计
      */
@@ -354,7 +343,7 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
         long newAvg = (currentAvg + latencyMs) / 2;
         avgLatency.set(newAvg);
     }
-    
+
     /**
      * 性能优化任务
      */
@@ -362,28 +351,28 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
         try {
             // 1. 调整分片策略
             buffer.adjustStrategy();
-            
+
             // 2. 动态调整批量大小
             adjustBatchSize();
-            
+
             // 3. 调整超时时间
             adjustBatchTimeout();
-            
+
             // 4. 输出性能报告
             logPerformanceReport();
-            
+
         } catch (Exception e) {
             addError("Performance optimization failed", e);
         }
     }
-    
+
     /**
      * 动态调整批量大小
      */
     private void adjustBatchSize() {
         IntelligentShardedBuffer.LoadStats stats = buffer.getLoadStats();
         double rejectionRate = stats.getRejectionRate();
-        
+
         if (rejectionRate > 0.1) {
             // 拒绝率过高，减小批量大小
             batchSize = Math.max(10, batchSize - 5);
@@ -392,13 +381,13 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
             batchSize = Math.min(200, batchSize + 10);
         }
     }
-    
+
     /**
      * 动态调整批量超时时间
      */
     private void adjustBatchTimeout() {
         long currentLatency = avgLatency.get();
-        
+
         if (currentLatency > 200) {
             // 延迟较高，减少超时时间
             batchTimeoutMs = Math.max(50, batchTimeoutMs - 10);
@@ -407,13 +396,13 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
             batchTimeoutMs = Math.min(500, batchTimeoutMs + 10);
         }
     }
-    
+
     /**
      * 输出性能报告
      */
     private void logPerformanceReport() {
         IntelligentShardedBuffer.LoadStats bufferStats = buffer.getLoadStats();
-        
+
         addInfo(String.format(
             "Performance Report - Total: %d, Dropped: %d, Errors: %d, " +
             "AvgLatency: %dms, BatchSize: %d, Timeout: %dms, Rejection: %.2f%%",
@@ -426,19 +415,19 @@ public class CustomAppender<E> extends UnsynchronizedAppenderBase<E> {
             bufferStats.getRejectionRate() * 100
         ));
     }
-    
+
     /**
      * 打印统计信息
      */
     private void printStatistics() {
         IntelligentShardedBuffer.LoadStats bufferStats = buffer.getLoadStats();
-        
+
         System.out.println("=== CustomAppender Statistics ===");
         System.out.println("Total Messages: " + totalMessages.get());
         System.out.println("Dropped Messages: " + droppedMessages.get());
         System.out.println("Error Count: " + errorCount.get());
         System.out.println("Average Latency: " + avgLatency.get() + "ms");
-        System.out.println("Buffer Rejection Rate: " + 
+        System.out.println("Buffer Rejection Rate: " +
                           String.format("%.2f%%", bufferStats.getRejectionRate() * 100));
         System.out.println("Final Batch Size: " + batchSize);
         System.out.println("Final Timeout: " + batchTimeoutMs + "ms");

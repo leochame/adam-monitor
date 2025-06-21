@@ -58,9 +58,7 @@ public class LogMessage {
         return traceId;
     }
     
-    public void setTraceId(String traceId) {
-        this.traceId = traceId;
-    }
+    public void setTraceId(String traceId) {this.traceId = traceId;}
     
     public void setSystemName(String systemName) {
         this.systemName = systemName;

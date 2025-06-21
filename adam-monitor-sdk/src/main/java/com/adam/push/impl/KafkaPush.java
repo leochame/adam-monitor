@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -266,7 +265,7 @@ public class KafkaPush implements IPush {
             long currentLatency = avgLatency.get();
             
             int oldMaxInFlight = MAX_IN_FLIGHT;
-            
+
             if (errorRate > 0.1) {
                 // 错误率过高，大幅减少并发
                 MAX_IN_FLIGHT = Math.max(MIN_IN_FLIGHT, MAX_IN_FLIGHT - 200);

@@ -1,14 +1,16 @@
 package com.adam;
 
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController("/monitor")
+@RestController
+@RequestMapping("/monitor")
 public class TestController {
 
     @PostMapping
-    public void TestPost(){
-
+    public String testPost(){
+        return "success";
     }
 
 }
