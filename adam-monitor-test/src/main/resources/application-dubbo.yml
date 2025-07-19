@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: adam-monitor-test
+
+dubbo:
+  application:
+    name: adam-monitor-test
+    version: 1.0.0
+    metadata-type: remote
+  
+  registry:
+    address: nacos://localhost:8848
+    username: nacos
+    password: nacos
+    parameters:
+      namespace: public
+      group: DEFAULT_GROUP
+  
+  protocol:
+    name: dubbo
+    port: 20880
+    serialization: fastjson2
+    
+  provider:
+    timeout: 30000
+    retries: 0
+    version: 1.0.0
+    
+  consumer:
+    timeout: 30000
+    retries: 0
+    version: 1.0.0
+    check: false
+    
+  metadata-report:
+    address: nacos://localhost:8848
+    username: nacos
+    password: nacos
+    
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    com.adam: DEBUG
+    org.apache.dubbo: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{AID:-}] [%X{traceId:-}] %logger{36} - %msg%n' 
