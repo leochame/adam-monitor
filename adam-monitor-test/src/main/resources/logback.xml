@@ -108,7 +108,11 @@
         <groupId>com.adam</groupId>
         <host>127.0.0.1</host>
         <port>9092</port>
-        <pushType>Kafka</pushType>
+        <topic>adam-monitor-logs</topic>
+        <batchSize>16384</batchSize>
+        <lingerMs>100</lingerMs>
+        <maxInFlight>5</maxInFlight>
+        <maxPendingMessages>10000</maxPendingMessages>
     </appender>
 
     <root level="info">

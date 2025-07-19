@@ -1,68 +1,46 @@
 package com.adam.listener;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import org.redisson.api.listener.MessageListener;
+import com.adam.entitys.LogMessage;
+import com.adam.service.LogAnalyticalService;
+import com.alibaba.fastjson.JSON;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.*;
+import java.util.Collections;
+import java.util.Optional;
 
+/**
+ * @author Mokai
+ * @description 监听日志队列信息
+ * @day 2024/7/12
+ */
 @Component
-public class MonitorLogListener implements MessageListener<LogMessage> {
+@Slf4j
+public class MonitorLogListener {
+    private static final Logger log = LoggerFactory.getLogger(MonitorLogListener.class);
 
-    private BlockingQueue<LogMessage> logQueue = new LinkedBlockingQueue<>();
-    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private volatile boolean isScheduled = false;
+    @Autowired
+    private LogAnalyticalService analyticalService;
 
-    // 批量大小和时间窗口配置
-    private static final int BATCH_SIZE = 100;
-    private static final int TIME_WINDOW_SECONDS = 5;
 
-    @PostConstruct
-    public void init() {
-        // 启动定时任务，固定时间间隔检查
-        scheduler.scheduleAtFixedRate(this::processBatch, TIME_WINDOW_SECONDS, TIME_WINDOW_SECONDS, TimeUnit.SECONDS);
-    }
-
-    @Override
-    public void onMessage(CharSequence charSequence, LogMessage logMessage) {
-        logQueue.offer(logMessage); // 非阻塞添加
-        // 达到批量大小时立即触发处理
-        if (logQueue.size() >= BATCH_SIZE) {
-            processBatch();
-        }
-    }
-
-    private void processBatch() {
-        List<LogMessage> batch = new ArrayList<>(BATCH_SIZE);
-        logQueue.drainTo(batch, BATCH_SIZE); // 批量取出
-        if (!batch.isEmpty()) {
-            try {
-                // 调用批量插入方法
-                batchInsertLogs(batch);
-            } catch (Exception e) {
-                // 异常处理（例如：重试或记录失败）
-                handleInsertError(batch, e);
+    @KafkaListener(topics = {"adam-monitor-logs"},groupId = "test")
+    public void onMessage(ConsumerRecord<String, String> record) {
+        Optional<String> kafkaMessage = Optional.ofNullable(record.value());
+        if (kafkaMessage.isPresent()) {
+            Object message = kafkaMessage.get();
+            if (StringUtils.isNotBlank(message.toString())) {
+                LogMessage logMessage = JSON.parseObject(message.toString(), LogMessage.class);
+                log.info("接收kafka日志信息:{}", JSON.toJSONString(logMessage));
+                analyticalService.saveAll(Collections.singletonList(JSON.toJSONString(logMessage)));
+                log.info("日志消费完毕,traceId:{}",logMessage.getTraceId());
             }
+
         }
-    }
-
-    private void batchInsertLogs(List<LogMessage> logs) {
-
-    }
-
-    private void handleInsertError(List<LogMessage> failedBatch, Exception e) {
-        // 处理插入失败的日志，如重新放回队列或记录到文件
-        logQueue.addAll(failedBatch);
-        // 日志记录异常
-    }
-
-    @PreDestroy
-    public void shutdown() {
-        scheduler.shutdown(); // 停止定时任务
-        // 处理剩余日志
-        processBatch();
     }
 }

@@ -1,6 +1,12 @@
 package com.adam.listener;
 
+import com.adam.entitys.LogMessage;
 import com.adam.service.LogAnalyticalService;
+import com.alibaba.fastjson.JSON;
+import org.apache.kafka.streams.processor.Processor;
+import org.apache.kafka.streams.processor.ProcessorContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +26,12 @@ import org.apache.flink.util.Collector;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Duration;
+import org.apache.kafka.streams.processor.PunctuationType;
 
 /**
  * Flink日志流处理器
@@ -30,104 +39,73 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Component
 @Slf4j
-public class LogStreamProcessor {
+public class LogStreamProcessor implements Processor<String, byte[]> {
 
-    @Autowired
-    private StreamExecutionEnvironment env;
+    private static final Logger log = LoggerFactory.getLogger(LogStreamProcessor.class);
 
-    @Autowired
-    private LogAnalyticalService logAnalyticalService;
+    private ProcessorContext context;
+    private final List<LogMessage> buffer = new ArrayList<>();
+    private final int batchSize;
+    private final LogAnalyticalService analyticalService;
 
-    @Value("${kafka.hosts}")
-    private String kafkaHosts;
+    public LogStreamProcessor(int batchSize, LogAnalyticalService analyticalService) {
+        this.batchSize = batchSize;
+        this.analyticalService = analyticalService;
+    }
 
-    @Value("${kafka.group}")
-    private String kafkaGroup;
+    @Override
+    public void init(ProcessorContext context) {
+        this.context = context;
+        // 定时处理缓冲区
+        this.context.schedule(Duration.ofSeconds(10), PunctuationType.WALL_CLOCK_TIME, (timestamp) -> processBuffer());
+        log.info("LogStreamProcessor initialized.");
+    }
 
-    private static final String TOPIC_NAME = "logs-topic4";
-    private static final int WINDOW_SIZE_SECONDS = 3;
-    private static final int BATCH_SIZE = 100;
-
-    private final AtomicInteger processedBatchCount = new AtomicInteger(0);
-    
-    @PostConstruct
-    public void init() throws Exception {
-        // 配置Kafka数据源
-        KafkaSource<String> source = KafkaSource.<String>builder()
-                .setBootstrapServers(kafkaHosts)
-                .setTopics(TOPIC_NAME)
-                .setGroupId(kafkaGroup)
-                .setStartingOffsets(OffsetsInitializer.latest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
-
-        // 创建数据流
-        DataStream<String> stream = env.fromSource(
-                source,
-                WatermarkStrategy.noWatermarks(),
-                "Kafka Source"
-        );
-
-        // 处理日志消息
-        stream
-                .map(new MapFunction<String, String>() {
-                    @Override
-                    public String map(String value) {
-                        // 可以在这里进行一些预处理，例如验证JSON格式等
-                        return value;
-                    }
-                })
-                .keyBy(value -> "default") // 使用固定键，类似于原来的实现
-                .window(TumblingProcessingTimeWindows.of(Time.seconds(WINDOW_SIZE_SECONDS)))
-                .process(new ProcessWindowFunction<String, List<String>, String, TimeWindow>() {
-                    @Override
-                    public void process(String key, 
-                                      ProcessWindowFunction<String, List<String>, String, TimeWindow>.Context context,
-                                      Iterable<String> elements, 
-                                      Collector<List<String>> out) {
-                        List<String> batch = new ArrayList<>();
-                        for (String element : elements) {
-                            batch.add(element);
-                            
-                            // 当批次达到指定大小时，进行处理
-                            if (batch.size() >= BATCH_SIZE) {
-                                out.collect(new ArrayList<>(batch));
-                                batch.clear();
-                            }
-                        }
-                        
-                        // 处理剩余的元素
-                        if (!batch.isEmpty()) {
-                            out.collect(batch);
-                        }
-                    }
-                })
-                .addSink(new SinkFunction<List<String>>() {
-                    @Override
-                    public void invoke(List<String> logBatch, Context context) {
-                        try {
-                            // 批量插入日志
-                            logAnalyticalService.saveAll(logBatch);
-                            int batchCount = processedBatchCount.incrementAndGet();
-                            log.info("成功插入批次 #{}: {} 条日志", batchCount, logBatch.size());
-                        } catch (Exception e) {
-                            log.error("批量插入日志失败: {}", e.getMessage(), e);
-                        }
-                    }
-                });
-
-        // 以分离的线程启动Flink作业
-        Thread flinkJobThread = new Thread(() -> {
-            try {
-                log.info("开始执行Flink日志处理作业...");
-                env.execute("Log Stream Processing");
-            } catch (Exception e) {
-                log.error("Flink作业执行失败: {}", e.getMessage(), e);
+    @Override
+    public void process(String key, byte[] value) {
+        // 将JSON字节数组转换为LogMessage对象
+        String json = new String(value, StandardCharsets.UTF_8);
+        try {
+            LogMessage logMessage = JSON.parseObject(json, LogMessage.class);
+            if (logMessage != null) {
+                buffer.add(logMessage);
+                log.debug("Added log to buffer. Buffer size: {}", buffer.size());
+            } else {
+                log.warn("Parsed LogMessage is null for JSON: {}", json);
             }
-        });
-        flinkJobThread.setDaemon(true); // 设置为守护线程，避免阻止JVM退出
-        flinkJobThread.start();
+        } catch (Exception e) {
+            log.error("Failed to parse JSON to LogMessage: " + json, e);
+        }
 
-        log.info("Flink日志处理作业已启动");
+        // 达到批量大小时处理
+        if (buffer.size() >= batchSize) {
+            processBuffer();
+        }
+    }
+
+    private void processBuffer() {
+        if (buffer.isEmpty()) {
+            return;
+        }
+
+        log.info("Processing buffer with {} logs.", buffer.size());
+        try {
+            // 在这里实现批量处理逻辑，例如，将它们发送到另一个系统或数据库
+            // analyticalService.analytical(new ArrayList<>(buffer));
+            log.info("Successfully processed {} logs.", buffer.size());
+        } catch (Exception e) {
+            log.error("Error processing log buffer.", e);
+            // 可以在这里添加重试逻辑或错误处理
+        } finally {
+            buffer.clear();
+            log.debug("Buffer cleared.");
+        }
+    }
+
+    @Override
+    public void close() {
+        // 在关闭前处理剩余的日志
+        log.info("Closing processor, processing remaining logs in buffer.");
+        processBuffer();
     }
 }

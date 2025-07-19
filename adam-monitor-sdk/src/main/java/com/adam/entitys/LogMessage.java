@@ -6,6 +6,8 @@ package com.adam.entitys;
 public class LogMessage {
 
     private String traceId;
+    
+    private String aid;
 
     private String systemName;
 
@@ -59,6 +61,14 @@ public class LogMessage {
     }
     
     public void setTraceId(String traceId) {this.traceId = traceId;}
+    
+    public String getAid() {
+        return aid;
+    }
+    
+    public void setAid(String aid) {
+        this.aid = aid;
+    }
     
     public void setSystemName(String systemName) {
         this.systemName = systemName;

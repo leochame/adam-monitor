@@ -11,6 +11,11 @@ target/
 *.iws
 *.iml
 *.ipr
+*tmp
+*.log
+*.index
+*.dblwr
+*.lock
 
 ### Eclipse ###
 .apt_generated
@@ -36,3 +41,25 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Docker生成的数据文件夹 ###
+# 这些文件夹现在已迁移到 ~/data/adam-monitor/ 目录
+# 但仍然排除项目中可能残留的数据文件夹
+zk_data/
+zk_log/
+kafka_data/
+nacos/
+ch_data/
+ch_logs/
+redis_data/
+prometheus_data/
+grafana_data/
+es_data/
+flink_checkpoints/
+user/
+data/
+
+### 其他运行时文件 ###
+*.pid
+*.sock
+logs/

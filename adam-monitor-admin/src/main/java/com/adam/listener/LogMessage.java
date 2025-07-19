@@ -7,6 +7,8 @@ import lombok.Data;
 public class LogMessage {
 
     private String traceId;
+    
+    private String aid;
 
     private String systemName;
 
